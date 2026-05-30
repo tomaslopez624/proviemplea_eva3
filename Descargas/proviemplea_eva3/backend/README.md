@@ -1,66 +1,31 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ProviEmplea - API REST y Documentación OpenAPI - EVA3
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Asignatura:** Desarrollo Backend - Evaluación Sumativa U3
+**Integrantes:** - Tomás López Franulic
 
-## About Laravel
+## Instrucciones de Despliegue
+1. Clonar el repositorio.
+2. Navegar a la carpeta `backend` y configurar el `.env` (credenciales por defecto de `docker-compose.yaml`).
+3. Levantar contenedores: `docker compose up -d --build`
+4. Instalar dependencias: `docker compose exec app composer install`
+5. Ejecutar migraciones: `docker compose exec app php artisan migrate`
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Swagger UI
+El archivo `swagger.yaml` se encuentra en la raíz del proyecto. Para visualizarlo de forma interactiva, el proyecto incluye un contenedor dedicado. -----> `http://localhost:8081`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Se redactó el contrato `swagger.yaml` detallando todos los endpoints CRUD para Personas, Empresas y el flujo de Administración (Contactos) segun las guias aportadas. Se levantó Swagger UI mediante Docker para probar interactivamente las respuestas exitosas (200, 201) y de error (404, 422).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Tipos de Datos y Estructuras
+El contrato YAML incluye `schemas` detallados con ejemplos de datos. Se hizo especial énfasis en la estructura `PersonaCVCiego`, la cual omite deliberadamente los datos de contacto y nombre para cumplir con el requerimiento de no discriminación. Se utilizaron formatos estrictos como `uuid` y arreglos JSON para las competencias.
 
-## Learning Laravel
+### Generación de Cliente
+Se generó el cliente SDK en PHP utilizando la imagen oficial de Docker:
+`docker run --rm -v ${PWD}:/local swaggerapi/swagger-codegen-cli-v3 generate -i /local/swagger.yaml -l php -o /local/api-client-php`
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- *Conflicto de UUID:* Durante las pruebas iniciales con el cliente generado, se identificó que las llaves foráneas en `contactos_solicitados` fallaban porque Eloquent esperaba IDs incrementales. Se corrigió forzando `$keyType = 'string'` y el trait `HasUuids` en los modelos de Laravel.
+- *Orden de Migraciones:* Se corrigió el error `1824` de MySQL modificando el timestamp de la migración de contactos para que se ejecute estrictamente después de que las tablas referenciadas (`personas` y `empresas`) ya existieran.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+###  Rate Limiting
+Se implementaron las siguientes mejoras en el código PHP, documentadas debidamente en la sección `info` del Swagger:
+- **Rate Limiting:** Se aplicó el middleware `throttle:api` globalmente en `routes/api.php` limitando las peticiones a 60 por minuto por IP para mitigar ataques DDoS.
+- **Caché de Consultas:** Se implementó `Cache::remember` en `AdministracionController@estadisticas` con un TTL de 5 minutos (300 segundos). Esto evita el recálculo en tiempo real de los conteos masivos en la base de datos, mejorando drásticamente el tiempo de respuesta del dashboard administrativo.

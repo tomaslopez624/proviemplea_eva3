@@ -39,9 +39,24 @@ services:
     networks:
       - proviemplea_network
 
+# ... (aquí arriba están app, web y db) ...
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: proviemplea_swagger
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./swagger.yaml:/swagger.yaml
+    environment:
+      SWAGGER_JSON: /swagger.yaml
+    networks:
+      - proviemplea_network
+
 networks:
   proviemplea_network:
     driver: bridge
 
 volumes:
   dbdata:
+
