@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\Persona;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AdministracionController extends Controller
 {
@@ -39,14 +40,19 @@ class AdministracionController extends Controller
 
     public function estadisticas(): JsonResponse
     {
-        return $this->successResponse([
-            'total_personas'  => Persona::count(),
-            'personas_activas'=> Persona::where('activo', true)->count(),
-            'total_empresas'  => Empresa::count(),
-            'total_contactos' => ContactoSolicitado::count(),
-            'por_estado'      => ContactoSolicitado::selectRaw('estado, count(*) as total')
-                                    ->groupBy('estado')
-                                    ->pluck('total', 'estado'),
-        ]);
+        // Guarda en caché por 5 minutos (300 segundos) para no saturar la BD
+        $datos = \Illuminate\Support\Facades\Cache::remember('dashboard_estadisticas', 300, function () {
+            return [
+                'total_personas'  => Persona::count(),
+                'personas_activas'=> Persona::where('activo', true)->count(),
+                'total_empresas'  => Empresa::count(),
+                'total_contactos' => ContactoSolicitado::count(),
+                'por_estado'      => ContactoSolicitado::selectRaw('estado, count(*) as total')
+                                        ->groupBy('estado')
+                                        ->pluck('total', 'estado'),
+            ];
+        });
+
+        return $this->successResponse($datos);
     }
 }
